@@ -22,9 +22,10 @@ public class ReactNativeHeadingPackage implements ReactPackage {
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
         List<NativeModule> modules = new ArrayList<>();
         modules.add(new ReactNativeHeadingModule(reactContext));
-        return modules;    }
+        return modules;
+    }
 
-    @Override
+    // Depricated in RN 0.47
     public List<Class<? extends JavaScriptModule>> createJSModules() {
         return Collections.emptyList();
     }
