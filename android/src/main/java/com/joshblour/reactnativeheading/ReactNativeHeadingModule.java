@@ -76,6 +76,20 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule impleme
     public void stop() {
         mSensorManager.unregisterListener(this);
     }
+    
+    @ReactMethod
+    public void isGyroscopeAvailable(Promise promise) {
+
+        if (mSensorManager == null) {
+            mSensorManager = (SensorManager) mApplicationContext.getSystemService(Context.SENSOR_SERVICE);
+        }
+
+        if (mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) != null) {
+            promise.resolve(true);
+        } else {
+            promise.resolve(false);
+        }
+    }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
