@@ -7,9 +7,11 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.GeomagneticField;
 import android.os.Bundle;
 import android.os.ParcelUuid;
 import android.util.Log;
+import android.location.LocationManager;
 
 
 import com.facebook.react.bridge.Arguments;
@@ -29,19 +31,18 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import com.joshblour.reactnativeheading.OrientationManager;
 
 
-public class ReactNativeHeadingModule extends ReactContextBaseJavaModule implements SensorEventListener {
-
+public class ReactNativeHeadingModule extends ReactContextBaseJavaModule {
 
     private static Context mApplicationContext;
-    private int mAzimuth = 0; // degree
-    private int newAzimuth = 0; // degree
+    private int heading = 0; // degree
+    private int newHeading = 0; // degree
     private float mFilter = 5;
     private SensorManager mSensorManager;
-    private Sensor mSensor;
-    private float[] orientation = new float[3];
-    private float[] rMat = new float[9];
+    private OrientationManager mOrientationManager;
+    private LocationManager mLocationManager;
 
     public ReactNativeHeadingModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -53,7 +54,35 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule impleme
         return "ReactNativeHeading";
     }
 
+    private final OrientationManager.OnChangedListener mHeadingListener =
+        new OrientationManager.OnChangedListener() {
 
+        @Override
+        public void onOrientationChanged(OrientationManager orientationManager) {
+            int newHeading = (int) orientationManager.getHeading();
+
+            //dont react to changes smaller than the filter value
+            if (Math.abs(heading - newHeading) < mFilter) {
+                return;
+            }
+
+            getReactApplicationContext()
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                    .emit("headingUpdated", newHeading);
+
+            heading = newHeading;
+        }
+
+        @Override
+        public void onLocationChanged(OrientationManager orientationManager) {
+
+        }
+
+        @Override
+        public void onAccuracyChanged(OrientationManager orientationManager) {
+
+        }
+    };
 
 
     @ReactMethod
@@ -63,20 +92,26 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule impleme
             mSensorManager = (SensorManager) mApplicationContext.getSystemService(Context.SENSOR_SERVICE);
         }
 
-        if (mSensor == null) {
-            mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        if (mLocationManager == null) {
+            mLocationManager = (LocationManager) mApplicationContext.getSystemService(Context.LOCATION_SERVICE);
         }
 
+        mOrientationManager = new OrientationManager(mSensorManager, mLocationManager);
+
+        mOrientationManager.addOnChangedListener(mHeadingListener);
+        boolean isStarted = mOrientationManager.start();
+
+
         mFilter = filter;
-        boolean started = mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_UI);
-        promise.resolve(started);
+        promise.resolve(isStarted);
     }
 
     @ReactMethod
     public void stop() {
-        mSensorManager.unregisterListener(this);
+        mOrientationManager.removeOnChangedListener(mHeadingListener);
+        mOrientationManager.stop();
     }
-    
+
     @ReactMethod
     public void isGyroscopeAvailable(Promise promise) {
 
@@ -89,34 +124,5 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule impleme
         } else {
             promise.resolve(false);
         }
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if( event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR ){
-            // calculate th rotation matrix
-            SensorManager.getRotationMatrixFromVector(rMat, event.values);
-            // get the azimuth value (orientation[0]) in degree
-
-            newAzimuth = (int) ( Math.toDegrees( SensorManager.getOrientation( rMat, orientation )[0] ));
-                          
-
-            //dont react to changes smaller than the filter value
-            if (Math.abs(mAzimuth - newAzimuth) < mFilter) {
-                return;
-            }
-
-            getReactApplicationContext()
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                    .emit("headingUpdated", (int) newAzimuth);
-
-            mAzimuth = newAzimuth;
-        }
-    }
-
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 }
