@@ -43,6 +43,7 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule {
     private SensorManager mSensorManager;
     private OrientationManager mOrientationManager;
     private LocationManager mLocationManager;
+    private boolean isStarted;
 
     public ReactNativeHeadingModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -98,8 +99,10 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule {
 
         mOrientationManager = new OrientationManager(mSensorManager, mLocationManager);
 
-        mOrientationManager.addOnChangedListener(mHeadingListener);
-        boolean isStarted = mOrientationManager.start();
+        isStarted = mOrientationManager.start();
+        if (isStarted) {
+            mOrientationManager.addOnChangedListener(mHeadingListener);
+        }
 
 
         mFilter = filter;
@@ -108,8 +111,10 @@ public class ReactNativeHeadingModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void stop() {
-        mOrientationManager.removeOnChangedListener(mHeadingListener);
-        mOrientationManager.stop();
+        if (isStarted) {
+            mOrientationManager.removeOnChangedListener(mHeadingListener);
+            mOrientationManager.stop();
+        }
     }
 
     @ReactMethod
